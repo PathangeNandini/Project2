@@ -3,7 +3,14 @@ dotenv.config();
 
 import app from './app';
 import connectDB from './config/database';
-import redis from './config/redis';
+
+// Import all models to register schemas
+import './models/User';
+import './models/Store';
+import './models/Product';
+import './models/InventoryLedger';
+import './models/Order';
+import './models/OrderLineItem';
 
 const PORT = process.env.PORT || 5000;
 
