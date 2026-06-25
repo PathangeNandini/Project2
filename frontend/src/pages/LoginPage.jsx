@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
-
 function LoginPage() {
   const navigate = useNavigate();
 
@@ -9,7 +8,6 @@ function LoginPage() {
     email: "",
     password: ""
   });
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -19,7 +17,6 @@ function LoginPage() {
       [e.target.name]: e.target.value
     }));
   };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -102,7 +99,6 @@ function LoginPage() {
               {loading ? "Signing in..." : "Login"}
             </button>
           </form>
-
           {error && <p className="error-text">{error}</p>}
 
           <div className="login-footer-text">
