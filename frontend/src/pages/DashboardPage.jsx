@@ -1,15 +1,12 @@
 import { useNavigate } from "react-router-dom";
-
 function DashboardPage() {
   const navigate = useNavigate();
   const user = JSON.parse(localStorage.getItem("user"));
-
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     navigate("/login");
   };
-
   return (
     <div className="dashboard-page">
       <header className="dashboard-header">
