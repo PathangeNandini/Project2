@@ -5,78 +5,53 @@ import { generateToken } from '../utils/jwt';
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password, role, storeId } = req.body;
-
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(400).json({ message: 'User already exists with this email' });
       return;
     }
-
-    const user = new User({
-      name,
-      email,
-      passwordHash: password,
-      role: role || 'cashier',
-      ...(storeId && { storeId }),
-    });
-
+    const user = new User({ name, email, passwordHash: password, role: role || 'cashier', storeId });
     await user.save();
-
     const token = generateToken({
-      userId: (user._id as any).toString(),
+      userId: user._id.toString(),
       role: user.role,
+      storeId: user.storeId?.toString(),
     });
-
     res.status(201).json({
       message: 'User registered successfully',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
-  } catch (error: any) {
-    console.error('Register error:', error);
-    res.status(500).json({ message: 'Server error during registration', error: error.message });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during registration', error });
   }
 };
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email, isActive: true });
     if (!user) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
-
     const isPasswordValid = await user.comparePassword(password);
     if (!isPasswordValid) {
       res.status(401).json({ message: 'Invalid email or password' });
       return;
     }
-
     const token = generateToken({
-      userId: (user._id as any).toString(),
+      userId: user._id.toString(),
       role: user.role,
+      storeId: user.storeId?.toString(),
     });
-
     res.status(200).json({
       message: 'Login successful',
       token,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
+      user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
-  } catch (error: any) {
-    console.error('Login error:', error);
-    res.status(500).json({ message: 'Server error during login', error: error.message });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error during login', error });
   }
 };
 
@@ -88,7 +63,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.status(200).json({ user });
-  } catch (error: any) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (error) {
+    res.status(500).json({ message: 'Server error', error });
   }
 };
