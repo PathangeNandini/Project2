@@ -68,7 +68,9 @@ UserSchema.methods.comparePassword = async function (
 };
 
 // Index for fast email lookup
+// Indexes
 UserSchema.index({ email: 1 });
+UserSchema.index({ storeId: 1 });
 UserSchema.index({ storeId: 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

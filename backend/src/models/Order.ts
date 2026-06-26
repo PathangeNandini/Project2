@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, CallbackError } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 
 export interface IOrder extends Document {
   orderNumber: string;
@@ -59,26 +59,10 @@ const OrderSchema = new Schema<IOrder>(
         totalPrice: { type: Number, required: true, min: 0 },
       },
     ],
-    subtotal: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
-    totalDiscount: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    totalTax: {
-      type: Number,
-      default: 0,
-      min: 0,
-    },
-    totalAmount: {
-      type: Number,
-      required: true,
-      min: 0,
-    },
+    subtotal: { type: Number, required: true, min: 0 },
+    totalDiscount: { type: Number, default: 0, min: 0 },
+    totalTax: { type: Number, default: 0, min: 0 },
+    totalAmount: { type: Number, required: true, min: 0 },
     paymentMethod: {
       type: String,
       enum: ['cash', 'card', 'digital_wallet'],
@@ -94,30 +78,21 @@ const OrderSchema = new Schema<IOrder>(
       enum: ['pending', 'confirmed', 'cancelled', 'refunded'],
       default: 'pending',
     },
-    notes: {
-      type: String,
-      trim: true,
-      maxlength: 500,
-    },
+    notes: { type: String, trim: true, maxlength: 500 },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
 // Auto generate order number before saving
-OrderSchema.pre('save', function (next: (err?: CallbackError) => void) {
+OrderSchema.pre('save', function (next) {
   if (!this.orderNumber) {
     const timestamp = Date.now().toString();
-    const random = Math.floor(Math.random() * 1000)
-      .toString()
-      .padStart(3, '0');
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     this.orderNumber = `ORD-${timestamp}-${random}`;
   }
   next();
 });
 
-// Indexes
 OrderSchema.index({ storeId: 1 });
 OrderSchema.index({ cashierId: 1 });
 OrderSchema.index({ orderNumber: 1 });
