@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema, CallbackError } from 'mongoose';
+import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -27,12 +27,10 @@ const UserSchema = new Schema<IUser>(
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
     passwordHash: {
       type: String,
       required: [true, 'Password is required'],
-      minlength: [6, 'Password must be at least 6 characters'],
     },
     role: {
       type: String,
@@ -51,19 +49,9 @@ const UserSchema = new Schema<IUser>(
   { timestamps: true }
 );
 
-UserSchema.pre('save', function (next) {
-  if (!this.isModified('passwordHash')) {
-    next();
-    return;
-  }
-  bcrypt.hash(this.passwordHash, 12)
-    .then((hash: string) => {
-      this.passwordHash = hash;
-      next();
-    })
-    .catch((err: Error) => {
-      next(err);
-    });
+UserSchema.pre('save', async function () {
+  if (!this.isModified('passwordHash')) return;
+  this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
 });
 
 UserSchema.methods.comparePassword = async function (

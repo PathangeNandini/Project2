@@ -17,11 +17,13 @@ export const protect = (req: Request, res: Response, next: NextFunction): void =
   }
 };
 
-export const authorize = (...roles: string[]) => {
+export const authorizeRoles = (...roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     const userRole = (req as any).user?.role;
     if (!roles.includes(userRole)) {
-      res.status(403).json({ message: `Access denied. Required roles: ${roles.join(', ')}` });
+      res.status(403).json({
+        message: `Access denied. Your role '${userRole}' is not authorized.`,
+      });
       return;
     }
     next();
