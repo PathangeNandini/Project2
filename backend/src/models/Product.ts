@@ -25,18 +25,18 @@ export interface IProduct extends Document {
 const VariantSchema = new Schema<IVariant>({
   size: { type: String },
   color: { type: String },
-  sku: { type: String, required: [true, 'SKU is required'] },
-  price: { type: Number, required: [true, 'Price is required'], min: 0 },
+  sku: { type: String, required: true },
+  price: { type: Number, required: true, min: 0 },
   stock: { type: Number, default: 0, min: 0 },
 });
 
 const ProductSchema = new Schema<IProduct>(
   {
-    name: { type: String, required: [true, 'Product name is required'], trim: true },
+    name: { type: String, required: true, trim: true },
     description: { type: String, trim: true },
-    category: { type: String, required: [true, 'Category is required'], trim: true },
+    category: { type: String, required: true, trim: true },
     variants: [VariantSchema],
-    basePrice: { type: Number, required: [true, 'Base price is required'], min: 0 },
+    basePrice: { type: Number, required: true, min: 0 },
     images: [{ type: String }],
     storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
     isActive: { type: Boolean, default: true },

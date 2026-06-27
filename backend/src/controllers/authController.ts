@@ -4,26 +4,42 @@ import { generateToken } from '../utils/jwt';
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
+    console.log('Register hit - body:', req.body);
     const { name, email, password, role, storeId } = req.body;
+
     const existingUser = await User.findOne({ email });
     if (existingUser) {
       res.status(400).json({ message: 'User already exists with this email' });
       return;
     }
-    const user = new User({ name, email, passwordHash: password, role: role || 'cashier', storeId });
-    await user.save();
-    const token = generateToken({
-      userId: user._id.toString(),
-      role: user.role,
-      storeId: user.storeId?.toString(),
+
+    console.log('Creating user...');
+    const user = new User({
+      name,
+      email,
+      passwordHash: password,
+      role: role || 'cashier',
+      ...(storeId && { storeId }),
     });
+
+    console.log('Saving user...');
+    await user.save();
+    console.log('User saved:', user._id);
+
+    const token = generateToken({
+      userId: (user._id as any).toString(),
+      role: user.role,
+    });
+
     res.status(201).json({
       message: 'User registered successfully',
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error during registration', error });
+  } catch (error: any) {
+    console.error('REGISTER ERROR:', error.message);
+    console.error('REGISTER STACK:', error.stack);
+    res.status(500).json({ message: 'Server error during registration', error: error.message });
   }
 };
 
@@ -41,17 +57,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     const token = generateToken({
-      userId: user._id.toString(),
+      userId: (user._id as any).toString(),
       role: user.role,
-      storeId: user.storeId?.toString(),
     });
     res.status(200).json({
       message: 'Login successful',
       token,
       user: { id: user._id, name: user.name, email: user.email, role: user.role },
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error during login', error });
+  } catch (error: any) {
+    console.error('LOGIN ERROR:', error.message);
+    res.status(500).json({ message: 'Server error during login', error: error.message });
   }
 };
 
@@ -63,7 +79,7 @@ export const getMe = async (req: Request, res: Response): Promise<void> => {
       return;
     }
     res.status(200).json({ user });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error });
+  } catch (error: any) {
+    res.status(500).json({ message: 'Server error', error: error.message });
   }
 };

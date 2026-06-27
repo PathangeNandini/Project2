@@ -1,4 +1,4 @@
-import mongoose, { Document, Schema } from 'mongoose';
+import mongoose, { Document, Schema, CallbackError } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
 export interface IUser extends Document {
@@ -48,29 +48,30 @@ const UserSchema = new Schema<IUser>(
       default: true,
     },
   },
-  {
-    timestamps: true,
-  }
+  { timestamps: true }
 );
 
-// Hash password before saving
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('passwordHash')) return next();
-  this.passwordHash = await bcrypt.hash(this.passwordHash, 12);
-  next();
+UserSchema.pre('save', function (next) {
+  if (!this.isModified('passwordHash')) {
+    next();
+    return;
+  }
+  bcrypt.hash(this.passwordHash, 12)
+    .then((hash: string) => {
+      this.passwordHash = hash;
+      next();
+    })
+    .catch((err: Error) => {
+      next(err);
+    });
 });
 
-// Compare password method
 UserSchema.methods.comparePassword = async function (
   password: string
 ): Promise<boolean> {
   return bcrypt.compare(password, this.passwordHash);
 };
 
-// Index for fast email lookup
-// Indexes
-UserSchema.index({ email: 1 });
-UserSchema.index({ storeId: 1 });
 UserSchema.index({ storeId: 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

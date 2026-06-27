@@ -28,28 +28,12 @@ export interface IOrder extends Document {
 
 const OrderSchema = new Schema<IOrder>(
   {
-    orderNumber: {
-      type: String,
-      required: true,
-      unique: true,
-    },
-    storeId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Store',
-      required: [true, 'Store ID is required'],
-    },
-    cashierId: {
-      type: Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Cashier ID is required'],
-    },
+    orderNumber: { type: String, required: true, unique: true },
+    storeId: { type: Schema.Types.ObjectId, ref: 'Store', required: true },
+    cashierId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
     items: [
       {
-        productId: {
-          type: Schema.Types.ObjectId,
-          ref: 'Product',
-          required: true,
-        },
+        productId: { type: Schema.Types.ObjectId, ref: 'Product', required: true },
         productName: { type: String, required: true },
         variantSku: { type: String, required: true },
         quantity: { type: Number, required: true, min: 1 },
@@ -66,7 +50,7 @@ const OrderSchema = new Schema<IOrder>(
     paymentMethod: {
       type: String,
       enum: ['cash', 'card', 'digital_wallet'],
-      required: [true, 'Payment method is required'],
+      required: true,
     },
     paymentStatus: {
       type: String,
@@ -83,7 +67,6 @@ const OrderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
-// Auto generate order number before saving
 OrderSchema.pre('save', function (next) {
   if (!this.orderNumber) {
     const timestamp = Date.now().toString();
@@ -95,7 +78,6 @@ OrderSchema.pre('save', function (next) {
 
 OrderSchema.index({ storeId: 1 });
 OrderSchema.index({ cashierId: 1 });
-OrderSchema.index({ orderNumber: 1 });
 OrderSchema.index({ status: 1 });
 OrderSchema.index({ createdAt: -1 });
 
