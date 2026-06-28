@@ -3,6 +3,8 @@ import cors from 'cors';
 import helmet from 'helmet';
 import dotenv from 'dotenv';
 import authRoutes from './routes/authRoutes';
+import storeRoutes from './routes/storeRoutes';
+import userRoutes from './routes/userRoutes';
 
 dotenv.config();
 
@@ -14,6 +16,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use('/auth', authRoutes);
+app.use('/stores', storeRoutes);
+app.use('/users', userRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
