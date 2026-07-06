@@ -67,7 +67,11 @@ const OrderSchema = new Schema<IOrder>(
   { timestamps: true }
 );
 
-OrderSchema.pre('save', function (next) {
+// Cast to `any` here: mongoose 9's overload resolution for the classic
+// `pre('save', fn)` two-argument signature is overly strict and misidentifies
+// the callback parameter type in some TS configurations. The runtime
+// behavior (Document, next) is unaffected.
+(OrderSchema.pre as any)('save', function (this: IOrder, next: (err?: Error) => void) {
   if (!this.orderNumber) {
     const timestamp = Date.now().toString();
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');

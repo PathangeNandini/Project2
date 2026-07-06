@@ -17,7 +17,6 @@ import ProtectedRoute from "./routes/ProtectedRoute";
 function App() {
   return (
     <Routes>
-
       <Route path="/login" element={<Login />} />
       <Route path="/register" element={<Register />} />
 
@@ -29,16 +28,44 @@ function App() {
         }
       >
         <Route path="/" element={<Dashboard />} />
-        <Route path="/products" element={<Products />} />
-        <Route path="/inventory" element={<Inventory />} />
-        <Route path="/orders" element={<Orders />} />
-        <Route path="/stores" element={<Stores />} />
-        <Route path="/users" element={<Users />} />
         <Route path="/pos" element={<POS />} />
+        <Route path="/orders" element={<Orders />} />
+
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute roles={["admin", "manager"]}>
+              <Products />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/inventory"
+          element={
+            <ProtectedRoute roles={["admin", "manager"]}>
+              <Inventory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/stores"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <Stores />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/users"
+          element={
+            <ProtectedRoute roles={["admin"]}>
+              <Users />
+            </ProtectedRoute>
+          }
+        />
       </Route>
 
       <Route path="*" element={<Navigate to="/" />} />
-
     </Routes>
   );
 }
