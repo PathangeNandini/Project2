@@ -8,6 +8,7 @@ import userRoutes from './routes/userRoutes';
 import productRoutes from './routes/productRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import orderRoutes from './routes/orderRoutes';
+import reportRoutes from './routes/reportRoutes';
 
 dotenv.config();
 
@@ -24,6 +25,7 @@ app.use('/users', userRoutes);
 app.use('/products', productRoutes);
 app.use('/inventory', inventoryRoutes);
 app.use('/orders', orderRoutes);
+app.use('/reports', reportRoutes);
 
 app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
