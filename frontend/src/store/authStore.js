@@ -1,21 +1,6 @@
 import { create } from 'zustand';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface AuthState {
-  user: User | null;
-  token: string | null;
-  isAuthenticated: boolean;
-  login: (user: User, token: string) => void;
-  logout: () => void;
-}
-
-export const useAuthStore = create<AuthState>((set) => ({
+export const useAuthStore = create((set) => ({
   user: null,
   token: localStorage.getItem('token'),
   isAuthenticated: !!localStorage.getItem('token'),

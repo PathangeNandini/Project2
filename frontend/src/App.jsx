@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
+import PosPage from './pages/PosPage';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function App() {
@@ -12,6 +13,14 @@ function App() {
         element={
           <ProtectedRoute>
             <DashboardPage />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/pos"
+        element={
+          <ProtectedRoute>
+            <PosPage />
           </ProtectedRoute>
         }
       />
