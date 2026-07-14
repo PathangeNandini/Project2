@@ -25,36 +25,47 @@ export default function PosPage() {
     }
   };
 
-  const filteredProducts = products.filter(
-    (p) =>
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.sku?.toLowerCase().includes(search.toLowerCase())
+  const tiles = products.flatMap((product) =>
+    (product.variants || []).map((variant) => ({
+      key: variant.sku,
+      productId: product._id,
+      storeId: product.storeId,
+      productName: product.name,
+      variantLabel: [variant.size, variant.color].filter(Boolean).join(' / '),
+      sku: variant.sku,
+      price: variant.price,
+      stock: variant.stock,
+    }))
   );
 
-  const addToCart = (product) => {
+  const filteredTiles = tiles.filter(
+    (t) =>
+      t.productName.toLowerCase().includes(search.toLowerCase()) ||
+      t.sku.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const addToCart = (tile) => {
     setCart((prev) => {
-      const existing = prev.find((item) => item._id === product._id);
+      const existing = prev.find((item) => item.sku === tile.sku);
       if (existing) {
         return prev.map((item) =>
-          item._id === product._id ? { ...item, qty: item.qty + 1 } : item
+          item.sku === tile.sku ? { ...item, qty: item.qty + 1 } : item
         );
       }
-      return [...prev, { ...product, qty: 1 }];
+      return [...prev, { ...tile, qty: 1 }];
     });
   };
 
-  const updateQty = (id, delta) => {
+  const updateQty = (sku, delta) => {
     setCart((prev) =>
       prev
-        .map((item) =>
-          item._id === id ? { ...item, qty: item.qty + delta } : item
-        )
+        .map((item) => (item.sku === sku ? { ...item, qty: item.qty + delta } : item))
         .filter((item) => item.qty > 0)
     );
   };
 
-  const removeItem = (id) => {
-    setCart((prev) => prev.filter((item) => item._id !== id));
+  const removeItem = (sku) => {
+    setCart((prev) => prev.filter((item) => item.sku !== sku));
   };
 
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.qty, 0);
@@ -66,17 +77,21 @@ export default function PosPage() {
     setCheckingOut(true);
     setReceipt(null);
     try {
+      const storeId = cart[0].storeId;
+
       const res = await api.post('/orders', {
+        storeId,
+        paymentMethod: 'cash',
         items: cart.map((item) => ({
-          productId: item._id,
+          productId: item.productId,
+          variantSku: item.sku,
           quantity: item.qty,
-          price: item.price,
+          unitPrice: item.price,
+          discount: 0,
+          taxRate: 5,
         })),
-        subtotal,
-        tax,
-        total,
       });
-      setReceipt(res.data);
+      setReceipt(res.data.order || res.data);
       setCart([]);
     } catch (err) {
       alert(err.response?.data?.message || 'Checkout failed. Try again.');
@@ -92,7 +107,6 @@ export default function PosPage() {
       </div>
 
       <div className="pos-page">
-        {/* Left: Product grid */}
         <div>
           <div className="pos-toolbar">
             <input
@@ -109,22 +123,25 @@ export default function PosPage() {
               <div className="spinner"></div>
               Loading products...
             </div>
-          ) : filteredProducts.length === 0 ? (
+          ) : filteredTiles.length === 0 ? (
             <p className="muted-text">No products found.</p>
           ) : (
             <div className="product-grid">
-              {filteredProducts.map((product) => (
+              {filteredTiles.map((tile) => (
                 <button
-                  key={product._id}
+                  key={tile.key}
                   className="product-tile"
-                  onClick={() => addToCart(product)}
-                  disabled={product.stock === 0}
+                  onClick={() => addToCart(tile)}
+                  disabled={tile.stock === 0}
                 >
-                  <span className="tile-name">{product.name}</span>
-                  <span className="tile-sku">{product.sku}</span>
-                  <span className="tile-price">₹{product.price}</span>
-                  <span className={`tile-stock ${product.stock === 0 ? 'out' : ''}`}>
-                    {product.stock === 0 ? 'Out of stock' : `${product.stock} in stock`}
+                  <span className="tile-name">{tile.productName}</span>
+                  {tile.variantLabel && (
+                    <span className="tile-sku">{tile.variantLabel}</span>
+                  )}
+                  <span className="tile-sku">{tile.sku}</span>
+                  <span className="tile-price">₹{tile.price}</span>
+                  <span className={`tile-stock ${tile.stock === 0 ? 'out' : ''}`}>
+                    {tile.stock === 0 ? 'Out of stock' : `${tile.stock} in stock`}
                   </span>
                 </button>
               ))}
@@ -132,7 +149,6 @@ export default function PosPage() {
           )}
         </div>
 
-        {/* Right: Cart */}
         <div className="pos-cart">
           <h3>Current Sale</h3>
 
@@ -141,23 +157,20 @@ export default function PosPage() {
               <p className="muted-text">Cart is empty. Click a product to add it.</p>
             ) : (
               cart.map((item) => (
-                <div className="cart-item" key={item._id}>
+                <div className="cart-item" key={item.sku}>
                   <div className="cart-item-info">
-                    <span className="cart-item-name">{item.name}</span>
+                    <span className="cart-item-name">{item.productName}</span>
                     <span className="cart-item-sku">{item.sku}</span>
                   </div>
                   <div className="cart-item-qty">
-                    <button onClick={() => updateQty(item._id, -1)}>-</button>
+                    <button onClick={() => updateQty(item.sku, -1)}>-</button>
                     <span>{item.qty}</span>
-                    <button onClick={() => updateQty(item._id, 1)}>+</button>
+                    <button onClick={() => updateQty(item.sku, 1)}>+</button>
                   </div>
                   <span className="cart-item-total">
                     ₹{(item.price * item.qty).toFixed(2)}
                   </span>
-                  <button
-                    className="cart-item-remove"
-                    onClick={() => removeItem(item._id)}
-                  >
+                  <button className="cart-item-remove" onClick={() => removeItem(item.sku)}>
                     ×
                   </button>
                 </div>
@@ -189,7 +202,7 @@ export default function PosPage() {
 
             {receipt && (
               <div className="receipt">
-                ✅ Order placed successfully! Order ID: {receipt._id || receipt.orderId}
+                ✅ Order placed successfully! Order ID: {receipt._id}
               </div>
             )}
           </div>
