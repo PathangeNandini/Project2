@@ -1,7 +1,6 @@
 import { Request, Response } from 'express';
 import Order from '../models/Order';
 import InventoryLedger from '../models/InventoryLedger';
-import mongoose from 'mongoose';
 
 // GET /orders
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
@@ -49,14 +48,10 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 
 // POST /orders
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
     const { storeId, items, paymentMethod, notes } = req.body;
     const cashierId = (req as any).user.userId;
 
-    // Calculate totals
     let subtotal = 0;
     let totalTax = 0;
     let totalDiscount = 0;
@@ -80,33 +75,24 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     const totalAmount = subtotal - totalDiscount + totalTax;
 
-    // Check and deduct inventory for each item
+    // Check inventory for each item
     for (const item of processedItems) {
       const inventory = await InventoryLedger.findOne({
         productId: item.productId,
         storeId,
         variantSku: item.variantSku,
-      }).session(session);
+      });
 
-      if (!inventory) {
-        await session.abortTransaction();
+      if (!inventory || inventory.quantity < item.quantity) {
         res.status(400).json({
-          message: `Inventory not found for SKU: ${item.variantSku}`,
-        });
-        return;
-      }
-
-      if (inventory.quantity < item.quantity) {
-        await session.abortTransaction();
-        res.status(400).json({
-          message: `Insufficient stock for SKU: ${item.variantSku}. Available: ${inventory.quantity}`,
+          message: `Insufficient stock for SKU: ${item.variantSku}`,
         });
         return;
       }
 
       inventory.quantity -= item.quantity;
       inventory.lastUpdated = new Date();
-      await inventory.save({ session });
+      await inventory.save();
     }
 
     // Create order
@@ -124,18 +110,15 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       notes,
     });
 
-    await order.save({ session });
-    await session.commitTransaction();
+    await order.save();
 
     res.status(201).json({
       message: 'Order created successfully',
       order,
     });
   } catch (error: any) {
-    await session.abortTransaction();
+    console.error('CREATE ORDER ERROR:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    session.endSession();
   }
 };
 
@@ -160,19 +143,14 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
 
 // POST /orders/:id/refund
 export const refundOrder = async (req: Request, res: Response): Promise<void> => {
-  const session = await mongoose.startSession();
-  session.startTransaction();
-
   try {
-    const order = await Order.findById(req.params.id).session(session);
+    const order = await Order.findById(req.params.id);
     if (!order) {
-      await session.abortTransaction();
       res.status(404).json({ message: 'Order not found' });
       return;
     }
 
     if (order.status === 'refunded') {
-      await session.abortTransaction();
       res.status(400).json({ message: 'Order already refunded' });
       return;
     }
@@ -183,24 +161,20 @@ export const refundOrder = async (req: Request, res: Response): Promise<void> =>
         productId: item.productId,
         storeId: order.storeId,
         variantSku: item.variantSku,
-      }).session(session);
+      });
 
       if (inventory) {
         inventory.quantity += item.quantity;
-        await inventory.save({ session });
+        await inventory.save();
       }
     }
 
     order.status = 'refunded';
     order.paymentStatus = 'refunded';
-    await order.save({ session });
+    await order.save();
 
-    await session.commitTransaction();
     res.status(200).json({ message: 'Order refunded successfully', order });
   } catch (error: any) {
-    await session.abortTransaction();
     res.status(500).json({ message: 'Server error', error: error.message });
-  } finally {
-    session.endSession();
   }
 };
