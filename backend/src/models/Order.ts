@@ -71,13 +71,12 @@ const OrderSchema = new Schema<IOrder>(
 // `pre('save', fn)` two-argument signature is overly strict and misidentifies
 // the callback parameter type in some TS configurations. The runtime
 // behavior (Document, next) is unaffected.
-(OrderSchema.pre as any)('save', function (this: IOrder, next: (err?: Error) => void) {
+OrderSchema.pre('save', function (this: IOrder) {
   if (!this.orderNumber) {
     const timestamp = Date.now().toString();
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     this.orderNumber = `ORD-${timestamp}-${random}`;
   }
-  next();
 });
 
 OrderSchema.index({ storeId: 1 });

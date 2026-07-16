@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import Order from '../models/Order';
 import InventoryLedger from '../models/InventoryLedger';
+import Product from '../models/Product';
 
 // GET /orders
 export const getAllOrders = async (req: Request, res: Response): Promise<void> => {
@@ -56,7 +57,15 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     let totalTax = 0;
     let totalDiscount = 0;
 
-    const processedItems = items.map((item: any) => {
+    const processedItems = [];
+
+    for (const item of items) {
+      const product = await Product.findById(item.productId);
+      if (!product) {
+        res.status(400).json({ message: `Product not found: ${item.productId}` });
+        return;
+      }
+
       const itemTotal = item.unitPrice * item.quantity;
       const itemDiscount = item.discount || 0;
       const itemTax = (itemTotal - itemDiscount) * ((item.taxRate || 0) / 100);
@@ -65,17 +74,21 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       totalDiscount += itemDiscount;
       totalTax += itemTax;
 
-      return {
-        ...item,
+      processedItems.push({
+        productId: item.productId,
+        productName: product.name,
+        variantSku: item.variantSku,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
         discount: itemDiscount,
         taxRate: item.taxRate || 0,
         totalPrice: itemTotal - itemDiscount + itemTax,
-      };
-    });
+      });
+    }
 
     const totalAmount = subtotal - totalDiscount + totalTax;
 
-    // Check inventory for each item
+    // Check and deduct inventory for each item
     for (const item of processedItems) {
       const inventory = await InventoryLedger.findOne({
         productId: item.productId,
@@ -95,8 +108,14 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       await inventory.save();
     }
 
+    // Generate order number here (pre('save') runs after validation, too late)
+    const timestamp = Date.now().toString();
+    const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
+    const orderNumber = `ORD-${timestamp}-${random}`;
+
     // Create order
     const order = new Order({
+      orderNumber,
       storeId,
       cashierId,
       items: processedItems,

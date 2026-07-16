@@ -9,6 +9,7 @@ import productRoutes from './routes/productRoutes';
 import inventoryRoutes from './routes/inventoryRoutes';
 import orderRoutes from './routes/orderRoutes';
 import reportRoutes from './routes/reportRoutes';
+import { notFound, errorHandler } from './middleware/errorMiddleware';
 
 dotenv.config();
 
@@ -35,8 +36,7 @@ app.get('/health', (req: Request, res: Response) => {
   });
 });
 
-app.use((req: Request, res: Response) => {
-  res.status(404).json({ message: 'Route not found' });
-});
+app.use(notFound);
+app.use(errorHandler);
 
 export default app;
