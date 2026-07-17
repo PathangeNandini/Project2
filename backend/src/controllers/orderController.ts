@@ -1,4 +1,5 @@
 import { Request, Response } from 'express';
+import mongoose from 'mongoose';
 import Order from '../models/Order';
 import InventoryLedger from '../models/InventoryLedger';
 import Product from '../models/Product';
@@ -49,6 +50,9 @@ export const getOrderById = async (req: Request, res: Response): Promise<void> =
 
 // POST /orders
 export const createOrder = async (req: Request, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
     const { storeId, items, paymentMethod, notes } = req.body;
     const cashierId = (req as any).user.userId;
@@ -60,8 +64,9 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     const processedItems = [];
 
     for (const item of items) {
-      const product = await Product.findById(item.productId);
+      const product = await Product.findById(item.productId).session(session);
       if (!product) {
+        await session.abortTransaction();
         res.status(400).json({ message: `Product not found: ${item.productId}` });
         return;
       }
@@ -88,32 +93,40 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
 
     const totalAmount = subtotal - totalDiscount + totalTax;
 
-    // Check and deduct inventory for each item
+    // Check and deduct inventory atomically within the transaction
     for (const item of processedItems) {
       const inventory = await InventoryLedger.findOne({
         productId: item.productId,
         storeId,
         variantSku: item.variantSku,
-      });
+      }).session(session);
 
-      if (!inventory || inventory.quantity < item.quantity) {
+      if (!inventory) {
+        await session.abortTransaction();
         res.status(400).json({
-          message: `Insufficient stock for SKU: ${item.variantSku}`,
+          message: `Inventory not found for SKU: ${item.variantSku}`,
+        });
+        return;
+      }
+
+      if (inventory.quantity < item.quantity) {
+        await session.abortTransaction();
+        res.status(400).json({
+          message: `Insufficient stock for SKU: ${item.variantSku}. Available: ${inventory.quantity}`,
         });
         return;
       }
 
       inventory.quantity -= item.quantity;
       inventory.lastUpdated = new Date();
-      await inventory.save();
+      await inventory.save({ session });
     }
 
-    // Generate order number here (pre('save') runs after validation, too late)
+    // Generate order number before save (pre-save hook runs after validation)
     const timestamp = Date.now().toString();
     const random = Math.floor(Math.random() * 1000).toString().padStart(3, '0');
     const orderNumber = `ORD-${timestamp}-${random}`;
 
-    // Create order
     const order = new Order({
       orderNumber,
       storeId,
@@ -129,7 +142,8 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
       notes,
     });
 
-    await order.save();
+    await order.save({ session });
+    await session.commitTransaction();
 
     res.status(201).json({
       message: 'Order created successfully',
@@ -137,7 +151,10 @@ export const createOrder = async (req: Request, res: Response): Promise<void> =>
     });
   } catch (error: any) {
     console.error('CREATE ORDER ERROR:', error);
+    await session.abortTransaction();
     res.status(500).json({ message: 'Server error', error: error.message });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -162,38 +179,48 @@ export const updateOrderStatus = async (req: Request, res: Response): Promise<vo
 
 // POST /orders/:id/refund
 export const refundOrder = async (req: Request, res: Response): Promise<void> => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
   try {
-    const order = await Order.findById(req.params.id);
+    const order = await Order.findById(req.params.id).session(session);
     if (!order) {
+      await session.abortTransaction();
       res.status(404).json({ message: 'Order not found' });
       return;
     }
 
     if (order.status === 'refunded') {
+      await session.abortTransaction();
       res.status(400).json({ message: 'Order already refunded' });
       return;
     }
 
-    // Restore inventory
+    // Restore inventory atomically
     for (const item of order.items) {
       const inventory = await InventoryLedger.findOne({
         productId: item.productId,
         storeId: order.storeId,
         variantSku: item.variantSku,
-      });
+      }).session(session);
 
       if (inventory) {
         inventory.quantity += item.quantity;
-        await inventory.save();
+        await inventory.save({ session });
       }
     }
 
     order.status = 'refunded';
     order.paymentStatus = 'refunded';
-    await order.save();
+    await order.save({ session });
 
+    await session.commitTransaction();
     res.status(200).json({ message: 'Order refunded successfully', order });
   } catch (error: any) {
+    console.error('REFUND ORDER ERROR:', error);
+    await session.abortTransaction();
     res.status(500).json({ message: 'Server error', error: error.message });
+  } finally {
+    session.endSession();
   }
 };
