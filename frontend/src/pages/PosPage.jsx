@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../api/axios';
 
 export default function PosPage() {
@@ -8,16 +8,27 @@ export default function PosPage() {
   const [loading, setLoading] = useState(true);
   const [checkingOut, setCheckingOut] = useState(false);
   const [receipt, setReceipt] = useState(null);
+  const debounceRef = useRef(null);
 
   useEffect(() => {
-    loadProducts();
+    loadProducts('');
   }, []);
 
-  const loadProducts = async () => {
+  // Debounced search: wait 350ms after typing stops before hitting the backend
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      loadProducts(search);
+    }, 350);
+    return () => clearTimeout(debounceRef.current);
+  }, [search]);
+
+  const loadProducts = async (searchTerm) => {
     setLoading(true);
     try {
-      const res = await api.get('/products');
-      setProducts(res.data.products || res.data || []);
+      const params = searchTerm ? { search: searchTerm, limit: 50 } : { limit: 50 };
+      const res = await api.get('/products', { params });
+      setProducts(res.data.products || []);
     } catch (err) {
       console.error('Failed to load products', err);
     } finally {
@@ -36,12 +47,6 @@ export default function PosPage() {
       price: variant.price,
       stock: variant.stock,
     }))
-  );
-
-  const filteredTiles = tiles.filter(
-    (t) =>
-      t.productName.toLowerCase().includes(search.toLowerCase()) ||
-      t.sku.toLowerCase().includes(search.toLowerCase())
   );
 
   const addToCart = (tile) => {
@@ -123,11 +128,11 @@ export default function PosPage() {
               <div className="spinner"></div>
               Loading products...
             </div>
-          ) : filteredTiles.length === 0 ? (
+          ) : tiles.length === 0 ? (
             <p className="muted-text">No products found.</p>
           ) : (
             <div className="product-grid">
-              {filteredTiles.map((tile) => (
+              {tiles.map((tile) => (
                 <button
                   key={tile.key}
                   className="product-tile"
