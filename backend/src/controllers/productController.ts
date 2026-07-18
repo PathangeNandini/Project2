@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import Product from '../models/Product';
+import { clearCache } from '../middleware/cacheMiddleware';
 
 // GET /products
 export const getAllProducts = async (req: Request, res: Response): Promise<void> => {
@@ -56,6 +57,9 @@ export const createProduct = async (req: Request, res: Response): Promise<void> 
   try {
     const product = new Product(req.body);
     await product.save();
+    console.log('About to clear cache for /products');
+await clearCache('/products');
+console.log('Cache clear call completed');// invalidate all cached product listings
     res.status(201).json({ message: 'Product created successfully', product });
   } catch (error: any) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -74,6 +78,9 @@ export const updateProduct = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ message: 'Product not found' });
       return;
     }
+    console.log('About to clear cache for /products');
+await clearCache('/products');
+console.log('Cache clear call completed');// ensures price/stock changes reflect immediately
     res.status(200).json({ message: 'Product updated successfully', product });
   } catch (error: any) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -92,6 +99,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       res.status(404).json({ message: 'Product not found' });
       return;
     }
+    await clearCache('/products');
     res.status(200).json({ message: 'Product deleted successfully' });
   } catch (error: any) {
     res.status(500).json({ message: 'Server error', error: error.message });

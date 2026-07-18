@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import InventoryLedger from '../models/InventoryLedger';
 import Product from '../models/Product';
+import { clearCache } from '../middleware/cacheMiddleware';
 
 // GET /inventory
 export const getAllInventory = async (req: Request, res: Response): Promise<void> => {
@@ -78,6 +79,8 @@ export const createInventory = async (req: Request, res: Response): Promise<void
     });
 
     await inventory.save();
+    await clearCache('/products'); // invalidate product cache since a new inventory record affects product listings
+
     res.status(201).json({ message: 'Inventory created successfully', inventory });
   } catch (error: any) {
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -109,6 +112,7 @@ export const updateStock = async (req: Request, res: Response): Promise<void> =>
 
     inventory.lastUpdated = new Date();
     await inventory.save();
+    await clearCache('/products'); // invalidate product cache since stock affects product listings
 
     res.status(200).json({
       message: 'Stock updated successfully',
@@ -161,6 +165,7 @@ export const transferStock = async (req: Request, res: Response): Promise<void> 
 
     await fromInventory.save();
     await toInventory.save();
+    await clearCache('/products'); // invalidate product cache since a transfer changes stock levels
 
     res.status(200).json({
       message: 'Stock transferred successfully',
