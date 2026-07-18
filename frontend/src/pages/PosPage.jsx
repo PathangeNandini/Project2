@@ -46,6 +46,7 @@ export default function PosPage() {
       sku: variant.sku,
       price: variant.price,
       stock: variant.stock,
+      image: product.images?.[0] || null,
     }))
   );
 
@@ -139,6 +140,13 @@ export default function PosPage() {
                   onClick={() => addToCart(tile)}
                   disabled={tile.stock === 0}
                 >
+                  {tile.image && (
+                    <img
+                      src={tile.image}
+                      alt={tile.productName}
+                      style={{ width: '100%', height: '90px', objectFit: 'cover', borderRadius: '6px', marginBottom: '6px' }}
+                    />
+                  )}
                   <span className="tile-name">{tile.productName}</span>
                   {tile.variantLabel && (
                     <span className="tile-sku">{tile.variantLabel}</span>
